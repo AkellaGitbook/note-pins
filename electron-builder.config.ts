@@ -3,6 +3,7 @@ import type { Configuration } from 'electron-builder'
 const config: Configuration = {
   appId: 'com.notepins.app',
   productName: 'Note Pins',
+  afterPack: `${process.cwd()}/afterPack.js`,
   directories: {
     buildResources: 'resources',
     output: 'dist',

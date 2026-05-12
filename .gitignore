@@ -13,6 +13,10 @@ note-pins-fixes-prompt.md
 photoerror.png
 yellow-sticky-note.avif
 
+# Backup files
+*.bak
+afterpack.log
+
 # Temp electron-vite lockfiles
 electron.vite.config.*.mjs
 
