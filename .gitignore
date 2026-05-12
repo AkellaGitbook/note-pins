@@ -1,0 +1,20 @@
+node_modules/
+out/
+dist/
+*.log
+.DS_Store
+Thumbs.db
+
+# Internal dev docs
+CLAUDE.md
+note-pins-fixes-prompt.md
+
+# Debug / scratch images
+photoerror.png
+yellow-sticky-note.avif
+
+# Temp electron-vite lockfiles
+electron.vite.config.*.mjs
+
+# Claude Code memory
+.claude/

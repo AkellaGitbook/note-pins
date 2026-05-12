@@ -1,0 +1,46 @@
+{
+  "name": "note-pins",
+  "productName": "Note Pins",
+  "version": "1.0.0",
+  "description": "Note Pins Desktop Application",
+  "author": "shanm",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "npm run build && electron-builder",
+    "make": "npm run build && electron-builder",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@electron-toolkit/utils": "^3.0.0",
+    "clsx": "^2.1.1",
+    "immer": "^10.1.1",
+    "koffi": "^2.16.2",
+    "react": "^18.3.1",
+    "react-colorful": "^5.6.1",
+    "react-dom": "^18.3.1",
+    "slate": "^0.101.5",
+    "slate-history": "^0.100.0",
+    "slate-react": "^0.105.0",
+    "uuid": "^10.0.0",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "electron": "^32.2.7",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8",
+    "vitest": "^4.1.6"
+  }
+}
