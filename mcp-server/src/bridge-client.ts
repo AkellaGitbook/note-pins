@@ -65,6 +65,13 @@ export async function createAndPostPhotoPin(body: {
   return request('POST', '/photo-pins', body)
 }
 
+export async function postClipboardImage(body: {
+  title?: string
+  caption?: string
+}): Promise<PhotoPin & { _type: 'photo' }> {
+  return request('POST', '/photo-pins/from-clipboard', body)
+}
+
 export async function updateNoteContent(
   id: string,
   body: { content?: string; slateContent?: string; title?: string }

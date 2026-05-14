@@ -1,9 +1,10 @@
 import { createServer, IncomingMessage, ServerResponse, Server } from 'http'
 import { spawn, ChildProcess } from 'child_process'
-import { copyFileSync, unlinkSync, existsSync } from 'fs'
+import { copyFileSync, unlinkSync, existsSync, writeFileSync } from 'fs'
 import { join, extname } from 'path'
+import { tmpdir } from 'os'
 import { v4 as uuidv4 } from 'uuid'
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, clipboard } from 'electron'
 import {
   getAllNotes,
   getAllPhotoPins,
@@ -204,6 +205,27 @@ async function handleReplacePhotoPinImage(req: IncomingMessage, res: ServerRespo
   ok(res, taggedPin(updated, 'photo'))
 }
 
+async function handlePostClipboardImage(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const body = await readBody(req) as any
+  const image = clipboard.readImage()
+  if (image.isEmpty()) {
+    err(res, 400, 'No image in clipboard. Copy an image first, then call this tool.'); return
+  }
+  const tmpPath = join(tmpdir(), `note-pins-${uuidv4()}.png`)
+  writeFileSync(tmpPath, image.toPNG())
+  const partial: Partial<PhotoPin> = { status: 'posted' }
+  if (body.title) partial.title = String(body.title)
+  if (body.caption) partial.caption = String(body.caption)
+  try {
+    const pin = createPhotoPin(tmpPath, partial)
+    _fpm!.openPin(pin)
+    pushMain(IPC.MAIN_PHOTO_PIN_ADDED, pin)
+    ok(res, taggedPin(pin, 'photo'))
+  } finally {
+    try { unlinkSync(tmpPath) } catch { /* already gone */ }
+  }
+}
+
 async function handlePostPinToDesktop(res: ServerResponse, id: string): Promise<void> {
   const note = getNoteById(id)
   if (note) {
@@ -278,6 +300,7 @@ async function dispatch(req: IncomingMessage, res: ServerResponse): Promise<void
 
     if (method === 'POST' && path === '/notes') return handleCreateNote(req, res)
     if (method === 'POST' && path === '/photo-pins') return handleCreatePhotoPin(req, res)
+    if (method === 'POST' && path === '/photo-pins/from-clipboard') return handlePostClipboardImage(req, res)
 
     m = path.match(/^\/notes\/([^/]+)\/content$/)
     if (method === 'PATCH' && m) return handleUpdateNoteContent(req, res, m[1])

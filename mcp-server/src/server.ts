@@ -137,6 +137,19 @@ function buildMcpServer(): McpServer {
     }
   )
 
+  server.tool('post_clipboard_image', 'Post the image currently in the clipboard as a photo pin on the desktop. Use this when the user pastes an image into the chat.',
+    {
+      title: z.string().optional().describe('Optional title for the photo pin'),
+      caption: z.string().optional().describe('Optional caption shown below the image'),
+    },
+    async ({ title, caption }) => {
+      try {
+        const pin = await bridge.postClipboardImage({ title, caption })
+        return { content: [{ type: 'text', text: `Photo pin posted from clipboard.\n${JSON.stringify(pin, null, 2)}` }] }
+      } catch (e) { return { content: [{ type: 'text', text: callError(e) }], isError: true } }
+    }
+  )
+
   server.tool('edit_note', 'Edit the text content and/or title of an existing sticky note',
     {
       id: z.string().describe('UUID of the note to edit'),
