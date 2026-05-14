@@ -12,7 +12,7 @@ A local MCP (Model Context Protocol) server that lets Claude control the Note Pi
 
 2. **MCP Server** (`mcp-server/`) — a separate Node.js process. In stdio mode it talks directly to Claude Desktop. In HTTP mode it listens on port 3001 and Claude.ai connects via ngrok.
 
-Both auto-start when Note Pins launches. No manual setup needed once the app is running.
+All three — the HTTP bridge, the MCP HTTP server, and the ngrok tunnel — auto-start when Note Pins launches. No manual setup, no separate terminal.
 
 ---
 
@@ -22,18 +22,20 @@ Both auto-start when Note Pins launches. No manual setup needed once the app is 
 Claude Desktop (stdio)          Claude.ai (via ngrok)
        │                                │
        │                    https://lather-ninth-kleenex.ngrok-free.dev
-       │                                │
-       └──────────────┬─────────────────┘
+       │                                │  ↑ auto-spawned by Electron
+       └──────────────┬─────────────────┘  ($LOCALAPPDATA\ngrok\ngrok.exe)
                       │
-              mcp-server/dist/server.js
+              mcp-server/dist/server.js   ← auto-spawned by Electron
               (port 3001 in HTTP mode)
                       │
                  HTTP fetch
                       │
-              127.0.0.1:47890  ← Electron HTTP bridge
+              127.0.0.1:47890  ← Electron HTTP bridge (also auto-spawned)
                       │
               db.ts + FloatingWindowManager + FloatingPhotoManager
 ```
+
+All three processes start automatically inside `startBridge()` in `src/main/http-bridge.ts` when Note Pins launches. They are all killed in `stopBridge()` when the app quits.
 
 ---
 
@@ -67,12 +69,22 @@ This is the correct pattern for stateless HTTP mode in SDK v1.29+. Do NOT go bac
 ### Don't Pre-Read the Request Body
 Earlier versions of the SDK let you read the body yourself and pass it as `parsedBody`. In v1.29, the SDK uses Hono internally and takes over body reading. Pre-consuming the stream with a custom `readBody()` caused 500 errors. Fix: just call `transport.handleRequest(req, res)` with no third argument and let the SDK read the body.
 
-### ngrok Tunnel
-The free ngrok account has a static domain: `lather-ninth-kleenex.ngrok-free.dev`. The tunnel only works while ngrok is running in a terminal. Command to start it:
-```
-ngrok http 3001
-```
+### ngrok Tunnel — now auto-starts with the app
+The free ngrok account has a static domain: `lather-ninth-kleenex.ngrok-free.dev`.  
 The Claude.ai connector URL is: `https://lather-ninth-kleenex.ngrok-free.dev/mcp`
+
+ngrok is now spawned automatically by Electron in `startBridge()`. No terminal needed. The ngrok binary lives at:
+```
+C:\Users\shanm\AppData\Local\ngrok\ngrok.exe   (v3.39.1)
+```
+The winget-installed ngrok at `C:\Program Files\ngrok\ngrok.exe` is too old (v3.3.x) — do not use it. If ngrok ever needs reinstalling, download from `bin.equinox.io` directly and put it in `%LOCALAPPDATA%\ngrok\`.
+
+The spawn call uses the static domain flag so the URL never changes:
+```typescript
+spawn(ngrokPath, ['http', '3001', '--domain=lather-ninth-kleenex.ngrok-free.dev'])
+```
+
+ngrok reads the authtoken from its own config file (`%LOCALAPPDATA%\ngrok\ngrok.yml`) which was set up earlier. If the token is ever lost, run `ngrok authtoken <token>` once to restore it.
 
 ### localhost vs 127.0.0.1
 On this machine, ngrok forwards to `localhost:3001` which may resolve to IPv6 `::1`. The MCP server only binds to `127.0.0.1` (IPv4). This caused 500s through ngrok. Fixed in the current setup (no action needed — just a note for future debugging).
@@ -101,7 +113,7 @@ C:\Users\<username>\AppData\Local\Programs\Note Pins\resources\mcp-server\dist\s
 | File | Change |
 |---|---|
 | `src/main/db.ts` | Default `fontFamily` changed from `Inter, sans-serif` to `Comic Sans MS, cursive` |
-| `src/main/http-bridge.ts` | Added `handlePostPinToDesktop` + `POST /pins/:id/post` route; also added MCP server auto-spawn on startup |
+| `src/main/http-bridge.ts` | Added `handlePostPinToDesktop` + `POST /pins/:id/post` route; MCP server auto-spawn on startup; ngrok auto-spawn on startup |
 | `mcp-server/src/server.ts` | Refactored to `buildMcpServer()` factory (per-request for HTTP); added `post_to_desktop` tool; added `source_type: "url"` to `post_picture` and `edit_picture` |
 | `mcp-server/src/bridge-client.ts` | Added `postPinToDesktop(id)` |
 | `mcp-server/src/temp-utils.ts` | Added `downloadToTempFile(url)` with redirect following and content-type detection |
@@ -127,7 +139,6 @@ $env:CSC_IDENTITY_AUTO_DISCOVERY="false"; npm run make
 
 ## Things Not Done / Future Ideas
 
-- **ngrok auto-start**: Right now the user has to manually run `ngrok http 3001` every session. Could be automated as a child process spawned from Electron alongside the MCP server, but requires an ngrok auth token stored somewhere.
 - **Friend-friendly MCP setup**: Currently requires Node.js + manual config file editing. Could potentially bundle a small installer script.
 - **Image generation support**: `post_picture` now supports URLs (useful when Claude finds or generates an image URL), but Claude.ai doesn't natively generate images so this is limited.
 - **Rich text via MCP**: `edit_note` converts plain text to paragraphs only. Raw Slate JSON is supported by the bridge (`slateContent` field) but not exposed as an MCP tool.

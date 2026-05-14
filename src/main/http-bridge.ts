@@ -37,6 +37,7 @@ const THEME_COLORS: Record<string, string> = {
 
 let server: Server | null = null
 let mcpProcess: ChildProcess | null = null
+let ngrokProcess: ChildProcess | null = null
 let _fwm: FloatingWindowManager | null = null
 let _fpm: FloatingPhotoManager | null = null
 let _mainWindow: BrowserWindow | null = null
@@ -347,9 +348,25 @@ export function startBridge(
   } else {
     console.warn('[mcp-http] server not found at', mcpServerPath, '— build mcp-server/ first')
   }
+
+  // Spawn ngrok so the Claude.ai connector stays live without a manual terminal.
+  // Uses the static free domain so the connector URL never changes.
+  const ngrokPath = join(process.env['LOCALAPPDATA'] ?? '', 'ngrok', 'ngrok.exe')
+  if (existsSync(ngrokPath)) {
+    ngrokProcess = spawn(ngrokPath, ['http', '3001', '--domain=lather-ninth-kleenex.ngrok-free.dev'], {
+      stdio: 'ignore',
+    })
+    ngrokProcess.on('error', (e) => console.warn('[ngrok] failed to start:', e.message))
+    ngrokProcess.on('exit', (code) => { if (code !== 0 && code !== null) console.warn(`[ngrok] exited with code ${code}`) })
+    console.log('[ngrok] spawned → https://lather-ninth-kleenex.ngrok-free.dev/mcp')
+  } else {
+    console.warn('[ngrok] not found at', ngrokPath, '— Claude.ai connector unavailable')
+  }
 }
 
 export function stopBridge(): void {
+  ngrokProcess?.kill()
+  ngrokProcess = null
   mcpProcess?.kill()
   mcpProcess = null
   server?.close()

@@ -28,7 +28,7 @@ This is the part I'm actually proud of. I wrote a local MCP (Model Context Proto
 
 It works with both Claude Desktop (runs locally, no internet needed) and Claude.ai (via ngrok tunnel).
 
-The way it works: the app runs a tiny HTTP server on localhost that Claude's MCP server talks to. Claude sends a tool call → MCP server hits the local API → Electron opens/closes/edits windows in real time. The MCP server bundles inside the app so nothing extra needs to be installed.
+The way it works: the app runs a tiny HTTP server on localhost that Claude's MCP server talks to. Claude sends a tool call → MCP server hits the local API → Electron opens/closes/edits windows in real time. The MCP server bundles inside the app so nothing extra needs to be installed. The ngrok tunnel also starts automatically with the app so the Claude.ai connector is always live without needing a separate terminal.
 
 **Tools Claude has access to:**
 
@@ -96,4 +96,4 @@ For Claude Desktop, add this to `%APPDATA%\Claude\claude_desktop_config.json`:
 
 Mostly because I wanted to see if I could make something that actually works with Claude in a useful way, not just a demo. The MCP integration means Claude can manage my desktop notes without me switching windows — I just describe what I want and it happens.
 
-The hardest parts were getting Electron windows to always stay behind other apps on Windows (had to call Win32 APIs directly with koffi) and figuring out the MCP SDK's stateless HTTP transport, which changed significantly in v1.29 and required creating a fresh server instance per request instead of reusing one.
+The hardest parts were getting Electron windows to always stay behind other apps on Windows (had to call Win32 APIs directly with koffi), figuring out the MCP SDK's stateless HTTP transport (changed significantly in v1.29, requires a fresh server instance per request), and getting the full Claude.ai integration to work without any manual steps — the app now auto-starts the bridge, the MCP server, and the ngrok tunnel all at once when it launches.
