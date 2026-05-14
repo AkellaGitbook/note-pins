@@ -90,6 +90,8 @@ export class FloatingPhotoManager {
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: false,
+        backgroundThrottling: true,
+        additionalArguments: ['--js-flags=--max-old-space-size=64'],
       },
     })
 
@@ -131,9 +133,9 @@ export class FloatingPhotoManager {
     })
 
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-      win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}?photoId=${pinId}`)
+      win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/photo-window.html?photoId=${pinId}`)
     } else {
-      win.loadFile(join(__dirname, '../renderer/index.html'), { query: { photoId: pinId } })
+      win.loadFile(join(__dirname, '../renderer/photo-window.html'), { query: { photoId: pinId } })
     }
 
     return win

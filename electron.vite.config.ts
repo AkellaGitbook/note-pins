@@ -33,6 +33,13 @@ export default defineConfig({
     },
     build: {
       outDir: resolve(__dirname, 'out/renderer'),
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/renderer/index.html'),
+          'note-window': resolve(__dirname, 'src/renderer/note-window.html'),
+          'photo-window': resolve(__dirname, 'src/renderer/photo-window.html'),
+        },
+      },
     },
   },
 })

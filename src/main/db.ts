@@ -38,6 +38,10 @@ export function waitForFlush(): Promise<void> {
   return flushChain
 }
 
+export function getImagesDir(): string {
+  return imagesDir
+}
+
 export type DbCorruptionInfo = {
   recoveredFromBackup: boolean
   backupDate: Date | null
@@ -113,7 +117,7 @@ function makeNote(partial: Partial<Note> = {}): Note {
     y: 120 + Math.floor(Math.random() * 160),
     width: 280,
     height: 320,
-    fontFamily: 'Inter, sans-serif',
+    fontFamily: 'Comic Sans MS, cursive',
     titleFontSize: 16,
     contentFontSize: 13,
     fontWeight: 400,

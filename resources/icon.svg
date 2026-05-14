@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 260">
+  <!-- Note Pins app icon — source SVG -->
+  <!-- Colors: amber bg #F59E0B, cream note #FFFDF0, dark fold #D97706, NP text #1C1917, pin #DC2626 -->
+
+  <!-- Amber background -->
+  <rect width="260" height="260" rx="58" fill="#F59E0B"/>
+
+  <!-- Note card (rotated -5deg around center 130,130) -->
+  <g transform="rotate(-5,130,130)">
+    <rect x="42" y="60" width="176" height="148" rx="9" fill="#FFFDF0"/>
+    <!-- Folded corner -->
+    <polygon points="218,60 218,84 194,60" fill="#D97706"/>
+    <!-- Ruled lines -->
+    <rect x="60" y="96"  width="140" height="1.5" fill="#FEF08A"/>
+    <rect x="60" y="113" width="140" height="1.5" fill="#FEF08A"/>
+    <rect x="60" y="130" width="140" height="1.5" fill="#FEF08A"/>
+    <rect x="60" y="147" width="140" height="1.5" fill="#FEF08A"/>
+    <!-- NP monogram -->
+    <text x="130" y="172" text-anchor="middle"
+          font-family="'Arial Black', Impact, sans-serif"
+          font-weight="900" font-size="72"
+          fill="#1C1917">NP</text>
+  </g>
+
+  <!-- Thumbtack pin (vertical, not rotated) -->
+  <circle cx="130" cy="60" r="26" fill="#DC2626"/>
+  <ellipse cx="121" cy="51" rx="8" ry="6" fill="#FCA5A5" opacity="0.65"/>
+  <rect x="128" y="84" width="4" height="22" rx="2" fill="#7F1D1D"/>
+  <polygon points="128,106 130,118 132,106" fill="#450A0A"/>
+</svg>

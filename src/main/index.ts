@@ -7,6 +7,7 @@ import { createMainWindow } from './window-manager'
 import { FloatingWindowManager } from './floating-window-manager'
 import { FloatingPhotoManager } from './floating-photo-manager'
 import { registerIpcHandlers } from './ipc-handlers'
+import { startBridge, stopBridge } from './http-bridge'
 
 app.setName('Note Pins')
 app.disableHardwareAcceleration()
@@ -98,6 +99,7 @@ app.whenReady().then(async () => {
   fpm = new FloatingPhotoManager(mainWindow)
 
   registerIpcHandlers(fwm, fpm, mainWindow)
+  startBridge(fwm, fpm, mainWindow)
 
   // Restore desktop notes/photos immediately — floating windows are independent
   // of the main window and don't need ready-to-show to fire first.
@@ -183,6 +185,7 @@ app.on('before-quit', () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.removeAllListeners('close')
   }
+  stopBridge()
   fwm?.closeAll()
   fpm?.closeAll()
   tray?.destroy()

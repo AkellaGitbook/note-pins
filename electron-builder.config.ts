@@ -9,6 +9,10 @@ const config: Configuration = {
     output: 'dist',
   },
   files: ['out/**/*', '!out/renderer/**/*.map'],
+  extraResources: [
+    { from: 'mcp-server/dist', to: 'mcp-server/dist', filter: ['**/*.js'] },
+    { from: 'mcp-server/node_modules', to: 'mcp-server/node_modules' },
+  ],
   extraMetadata: {
     main: 'out/main/index.js',
   },

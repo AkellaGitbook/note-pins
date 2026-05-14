@@ -99,6 +99,8 @@ export class FloatingWindowManager {
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: false,
+        backgroundThrottling: true,
+        additionalArguments: ['--js-flags=--max-old-space-size=64'],
       },
     })
 
@@ -143,9 +145,9 @@ export class FloatingWindowManager {
     })
 
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-      win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}?noteId=${noteId}`)
+      win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/note-window.html?noteId=${noteId}`)
     } else {
-      win.loadFile(join(__dirname, '../renderer/index.html'), { query: { noteId } })
+      win.loadFile(join(__dirname, '../renderer/note-window.html'), { query: { noteId } })
     }
 
     return win

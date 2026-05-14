@@ -3,6 +3,48 @@ import type { Note } from '../../../shared/types'
 import { getTheme } from '../../../shared/themes'
 import { NoteContentRenderer } from './NoteContent'
 
+type SlateNode = {
+  type?: string
+  text?: string
+  children?: SlateNode[]
+}
+
+function splitSentences(text: string): string[] {
+  return text.split(/(?<=\.)\s+(?=[A-Z])/).filter(s => s.length > 0)
+}
+
+function eraseSentenceFromContent(content: string, key: string): string {
+  const [targetBlockIdx, targetLeafIdx, targetSentIdx] = key.split(':').map(Number)
+  let nodes: SlateNode[]
+  try {
+    nodes = JSON.parse(content)
+    if (!Array.isArray(nodes)) return content
+  } catch { return content }
+
+  const newNodes: SlateNode[] = JSON.parse(JSON.stringify(nodes))
+
+  function processNode(node: SlateNode, blockIdx: number, leafIdx: number): boolean {
+    if (node.text !== undefined) {
+      if (blockIdx === targetBlockIdx && leafIdx === targetLeafIdx) {
+        const parts = splitSentences(node.text)
+        parts.splice(targetSentIdx, 1)
+        node.text = parts.join(' ')
+        return true
+      }
+      return false
+    }
+    for (let i = 0; i < (node.children?.length ?? 0); i++) {
+      if (processNode(node.children![i], blockIdx, i)) return true
+    }
+    return false
+  }
+
+  for (let i = 0; i < newNodes.length; i++) {
+    processNode(newNodes[i], i, 0)
+  }
+  return JSON.stringify(newNodes)
+}
+
 function getShadow(level: number): string {
   const shadows = [
     'none',
@@ -23,10 +65,13 @@ export function StickyNote({ note }: Props) {
 
   const handleSentenceClick = async (key: string) => {
     const current = note.struckKeys ?? []
-    const updated = current.includes(key)
-      ? current.filter(k => k !== key)
-      : [...current, key]
-    await window.floatApi.updateStyle(note.id, { struckKeys: updated })
+    if (current.includes(key)) {
+      const newContent = eraseSentenceFromContent(note.content, key)
+      const newStruckKeys = current.filter(k => k !== key)
+      await window.floatApi.updateStyle(note.id, { content: newContent, struckKeys: newStruckKeys })
+    } else {
+      await window.floatApi.updateStyle(note.id, { struckKeys: [...current, key] })
+    }
   }
 
   const shellStyle: AppRegionStyle = {
