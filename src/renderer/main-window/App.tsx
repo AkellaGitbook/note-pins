@@ -5,7 +5,7 @@ import { AppShell } from './components/AppShell'
 
 export function MainApp() {
   const { loadNotes, applyNoteUpdated, applyNoteDeleted, applyNoteAdded, selectNote } = useNotesStore()
-  const { loadPins, applyPinUpdated, applyPinDeleted, applyPinAdded } = usePhotoPinsStore()
+  const { loadPins, applyPinUpdated, applyPinDeleted, applyPinAdded, selectPin } = usePhotoPinsStore()
 
   useEffect(() => {
     loadNotes()
@@ -18,6 +18,7 @@ export function MainApp() {
     window.photoApi.onPhotoPinUpdated(applyPinUpdated)
     window.photoApi.onPhotoPinDeleted(applyPinDeleted)
     window.photoApi.onPhotoPinAdded(applyPinAdded)
+    window.photoApi.onSelectPhoto((id) => selectPin(id))
   }, [])
 
   return <AppShell />

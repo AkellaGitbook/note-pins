@@ -77,4 +77,8 @@ contextBridge.exposeInMainWorld('photoApi', {
   onPhotoPinDeleted: (cb: (id: string) => void): void => {
     ipcRenderer.on(IPC.MAIN_PHOTO_PIN_DELETED, (_e, id) => cb(id))
   },
+
+  onSelectPhoto: (cb: (id: string) => void): void => {
+    ipcRenderer.on(IPC.MAIN_SELECT_PHOTO, (_e, id) => cb(id))
+  },
 })

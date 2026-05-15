@@ -3,13 +3,7 @@ import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import type { Note } from '../shared/types'
 import { IPC } from '../shared/ipc-channels'
-import { THEMES } from '../shared/themes'
-import {
-  getNoteById,
-  updateNote,
-  deleteNote,
-  duplicateNote,
-} from './db'
+import { getNoteById, updateNote, deleteNote } from './db'
 import { sinkWindow } from './win32'
 
 export class FloatingWindowManager {
@@ -100,6 +94,7 @@ export class FloatingWindowManager {
         contextIsolation: true,
         sandbox: false,
         backgroundThrottling: true,
+        spellcheck: false,
         additionalArguments: ['--js-flags=--max-old-space-size=64'],
       },
     })
@@ -171,41 +166,27 @@ export class FloatingWindowManager {
     }
   }
 
-  private showContextMenu(win: BrowserWindow, noteId: string, note: Note): void {
+  private showContextMenu(win: BrowserWindow, noteId: string, _note: Note): void {
     const fwm = this
 
     const menu = Menu.buildFromTemplate([
       {
-        label: 'Edit in App',
+        label: 'Edit',
         click: () => {
-          if (!this.mainWindow.isDestroyed()) {
-            this.mainWindow.focus()
-            this.mainWindow.webContents.send(IPC.MAIN_NOTE_UPDATED, note)
-            this.mainWindow.webContents.send(IPC.MAIN_SELECT_NOTE, note.id)
-          }
+          win.webContents.send(IPC.FLOAT_ENTER_EDIT)
         },
       },
       {
-        label: 'Move Back to App',
+        label: 'Un-post',
         click: () => {
           fwm.closeNote(noteId)
-          const updated = updateNote(noteId, { status: 'draft' })
+          const updated = updateNote(noteId, { status: 'unposted' })
           if (updated && !this.mainWindow.isDestroyed()) {
             this.mainWindow.webContents.send(IPC.MAIN_NOTE_UPDATED, updated)
           }
         },
       },
       { type: 'separator' },
-      {
-        label: 'Remove from Desktop',
-        click: () => {
-          fwm.closeNote(noteId)
-          const updated = updateNote(noteId, { status: 'hidden' })
-          if (updated && !this.mainWindow.isDestroyed()) {
-            this.mainWindow.webContents.send(IPC.MAIN_NOTE_UPDATED, updated)
-          }
-        },
-      },
       {
         label: 'Delete Permanently',
         click: async () => {
@@ -222,74 +203,6 @@ export class FloatingWindowManager {
             deleteNote(noteId)
             if (!this.mainWindow.isDestroyed()) {
               this.mainWindow.webContents.send(IPC.MAIN_NOTE_DELETED, noteId)
-            }
-          }
-        },
-      },
-      { type: 'separator' },
-      {
-        label: 'Duplicate',
-        click: () => {
-          const copy = duplicateNote(noteId)
-          if (copy && !this.mainWindow.isDestroyed()) {
-            this.mainWindow.webContents.send(IPC.MAIN_NOTE_ADDED, copy)
-          }
-        },
-      },
-      { type: 'separator' },
-      {
-        label: 'Change Theme',
-        submenu: THEMES.map((t) => ({
-          label: t.label,
-          click: () => {
-            const updated = updateNote(noteId, {
-              theme: t.id,
-              backgroundColor: t.backgroundColor,
-            })
-            if (updated) {
-              fwm.pushUpdate(updated)
-              if (!this.mainWindow.isDestroyed()) {
-                this.mainWindow.webContents.send(IPC.MAIN_NOTE_UPDATED, updated)
-              }
-            }
-          },
-        })),
-      },
-      { type: 'separator' },
-      {
-        label: note.isAlwaysOnTop ? 'Unpin from Top' : 'Pin Above Apps',
-        click: () => {
-          const value = !note.isAlwaysOnTop
-          const floatWin = fwm.getWindow(noteId)
-          if (floatWin && !floatWin.isDestroyed()) {
-            if (process.platform === 'darwin') {
-              floatWin.setAlwaysOnTop(value, value ? 'floating' : 'desktop-icon')
-            } else {
-              floatWin.setAlwaysOnTop(value)
-            }
-          }
-          const updated = updateNote(noteId, { isAlwaysOnTop: value })
-          if (updated) {
-            fwm.pushUpdate(updated)
-            if (!this.mainWindow.isDestroyed()) {
-              this.mainWindow.webContents.send(IPC.MAIN_NOTE_UPDATED, updated)
-            }
-          }
-        },
-      },
-      {
-        label: note.isLocked ? 'Unlock Position' : 'Lock Position',
-        click: () => {
-          const value = !note.isLocked
-          const floatWin = fwm.getWindow(noteId)
-          if (floatWin && !floatWin.isDestroyed()) {
-            floatWin.setResizable(!value)
-          }
-          const updated = updateNote(noteId, { isLocked: value })
-          if (updated) {
-            fwm.pushUpdate(updated)
-            if (!this.mainWindow.isDestroyed()) {
-              this.mainWindow.webContents.send(IPC.MAIN_NOTE_UPDATED, updated)
             }
           }
         },

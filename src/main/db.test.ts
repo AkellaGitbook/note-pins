@@ -81,7 +81,7 @@ describe('createNote', () => {
     expect(note.id).toBeTruthy()
     expect(note.title).toBe('Test')
     expect(note.content).toBeTruthy()
-    expect(note.status).toBe('draft')
+    expect(note.status).toBe('unposted')
     expect(note.tags).toEqual([])
     expect(note.struckKeys).toEqual([])
 

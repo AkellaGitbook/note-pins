@@ -6,11 +6,14 @@ type State = {
   note: Note | null
   noteId: string | null
   loading: boolean
+  isEditing: boolean
 }
 
 type Actions = {
   load: (id: string) => Promise<void>
   applyUpdate: (note: Note) => void
+  enterEditMode: () => void
+  exitEditMode: () => void
 }
 
 export const useNoteWindowStore = create<State & Actions>()(
@@ -18,6 +21,7 @@ export const useNoteWindowStore = create<State & Actions>()(
     note: null,
     noteId: null,
     loading: true,
+    isEditing: false,
 
     load: async (id: string) => {
       set((s) => {
@@ -36,5 +40,9 @@ export const useNoteWindowStore = create<State & Actions>()(
         s.note = note
       })
     },
+
+    enterEditMode: () => set((s) => { s.isEditing = true }),
+
+    exitEditMode: () => set((s) => { s.isEditing = false }),
   }))
 )

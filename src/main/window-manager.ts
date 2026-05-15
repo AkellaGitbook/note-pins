@@ -17,6 +17,8 @@ export function createMainWindow(showOnReady = true): BrowserWindow {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
+      backgroundThrottling: true,
+      additionalArguments: ['--js-flags=--max-old-space-size=128'],
     },
   })
 

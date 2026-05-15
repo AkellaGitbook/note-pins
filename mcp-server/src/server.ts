@@ -3,20 +3,20 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import * as bridge from './bridge-client.js'
-import { isNote } from './types.js'
+import * as bridge from './bridge-client'
+import { isNote } from './types'
 import {
   slateToPlainText,
   findSentenceKey,
   toggleStruckKey,
-} from './slate-utils.js'
+} from './slate-utils'
 import {
   detectImageExtension,
   isAllowedExtension,
   base64ToTempFile,
   cleanupTempFile,
   downloadToTempFile,
-} from './temp-utils.js'
+} from './temp-utils'
 import { extname } from 'path'
 
 const MCP_PORT = parseInt(process.env['NOTE_PINS_MCP_PORT'] ?? '3001', 10)
@@ -249,46 +249,55 @@ function buildMcpServer(): McpServer {
 
 const useHttp = process.env['NOTE_PINS_HTTP_MODE'] === '1'
 
-if (useHttp) {
-  const CORS_HEADERS: Record<string, string> = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization, Mcp-Session-Id',
-  }
-
-  const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-    for (const [k, v] of Object.entries(CORS_HEADERS)) res.setHeader(k, v)
-    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return }
-
-    const url = new URL(req.url ?? '/', `http://localhost`)
-    if (url.pathname !== '/mcp') {
-      res.writeHead(404, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: 'Use /mcp' })); return
+;(async () => {
+  if (useHttp) {
+    const CORS_HEADERS: Record<string, string> = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization, Mcp-Session-Id',
     }
 
-    // SDK v1.29+: stateless transport cannot be reused — create fresh per request
-    const mcpServer = buildMcpServer()
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
-    await mcpServer.connect(transport)
+    const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+      for (const [k, v] of Object.entries(CORS_HEADERS)) res.setHeader(k, v)
+      if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return }
 
-    try {
-      await transport.handleRequest(req, res)
-    } catch (e) {
-      if (!res.headersSent) {
-        res.writeHead(500, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ error: String(e) }))
+      const url = new URL(req.url ?? '/', `http://localhost`)
+      if (url.pathname !== '/mcp') {
+        res.writeHead(404, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Use /mcp' })); return
       }
-    }
-  })
 
-  httpServer.listen(MCP_PORT, '127.0.0.1', () => {
-    process.stderr.write(`[note-pins-mcp] HTTP listening on http://127.0.0.1:${MCP_PORT}/mcp\n`)
-  })
-  process.on('SIGTERM', () => { httpServer.close(); process.exit(0) })
-  process.on('SIGINT',  () => { httpServer.close(); process.exit(0) })
-} else {
-  // stdio — spawned on demand by Claude Desktop (or Claude Code CLI)
-  const mcpServer = buildMcpServer()
-  const transport = new StdioServerTransport()
-  await mcpServer.connect(transport)
-}
+      // Browser GET — return a friendly status page instead of an MCP protocol error
+      if (req.method === 'GET' && !req.headers['accept']?.includes('text/event-stream')) {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ status: 'Note Pins MCP server is running', endpoint: 'POST http://127.0.0.1:3001/mcp' }))
+        return
+      }
+
+      // SDK v1.29+: stateless transport cannot be reused — create fresh per request
+      const mcpServer = buildMcpServer()
+      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
+      await mcpServer.connect(transport)
+
+      try {
+        await transport.handleRequest(req, res)
+      } catch (e) {
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: String(e) }))
+        }
+      }
+    })
+
+    httpServer.listen(MCP_PORT, '127.0.0.1', () => {
+      process.stderr.write(`[note-pins-mcp] HTTP listening on http://127.0.0.1:${MCP_PORT}/mcp\n`)
+    })
+    process.on('SIGTERM', () => { httpServer.close(); process.exit(0) })
+    process.on('SIGINT',  () => { httpServer.close(); process.exit(0) })
+  } else {
+    // stdio — spawned on demand by Claude Desktop (or Claude Code CLI)
+    const mcpServer = buildMcpServer()
+    const transport = new StdioServerTransport()
+    await mcpServer.connect(transport)
+  }
+})()

@@ -4,7 +4,7 @@ export type Note = {
   content: string
   createdAt: string
   updatedAt: string
-  status: 'draft' | 'posted' | 'hidden'
+  status: 'posted' | 'unposted'
   x: number
   y: number
   width: number
@@ -33,7 +33,7 @@ export type PhotoPin = {
   caption: string
   createdAt: string
   updatedAt: string
-  status: 'draft' | 'posted'
+  status: 'posted' | 'unposted'
   x: number
   y: number
   width: number

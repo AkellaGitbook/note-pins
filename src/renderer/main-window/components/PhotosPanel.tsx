@@ -1,39 +1,16 @@
 import { useFilteredPhotoPins, usePhotoPinsStore } from '../store/usePhotoPinsStore'
 import { PhotoPinCard } from './PhotoPinCard'
-import { clsx } from 'clsx'
-
-const FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'draft', label: 'Drafts' },
-  { id: 'posted', label: 'On Desktop' },
-] as const
 
 export function PhotosPanel() {
   const pins = useFilteredPhotoPins()
-  const { selectedId, selectPin, photoFilter, setPhotoFilter } = usePhotoPinsStore()
+  const { selectedId, selectPin } = usePhotoPinsStore()
 
   return (
     <div className="flex-1 overflow-y-auto p-4">
-      <div className="flex items-center gap-2 mb-4">
-        <h2 className="text-sm font-medium text-slate-500 flex-1">
+      <div className="flex items-center mb-4">
+        <h2 className="text-sm font-medium text-slate-500">
           {pins.length} {pins.length === 1 ? 'photo' : 'photos'}
         </h2>
-        <div className="flex gap-1">
-          {FILTERS.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setPhotoFilter(f.id)}
-              className={clsx(
-                'text-xs px-2 py-1 rounded-md transition-colors',
-                photoFilter === f.id
-                  ? 'bg-amber-100 text-amber-800 font-medium'
-                  : 'text-slate-500 hover:bg-slate-100'
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
       </div>
 
       {pins.length === 0 ? (

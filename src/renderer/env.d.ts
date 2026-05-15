@@ -26,6 +26,7 @@ declare global {
       updateStyle: (id: string, patch: Partial<Note>) => Promise<Note | null>
       setAlwaysOnTop: (id: string, value: boolean) => Promise<void>
       onNoteUpdated: (cb: (note: Note) => void) => void
+      onEnterEdit: (cb: () => void) => void
     }
     photoApi: {
       getAllPhotoPins: () => Promise<PhotoPin[]>
@@ -39,6 +40,7 @@ declare global {
       onPhotoPinAdded: (cb: (pin: PhotoPin) => void) => void
       onPhotoPinUpdated: (cb: (pin: PhotoPin) => void) => void
       onPhotoPinDeleted: (cb: (id: string) => void) => void
+      onSelectPhoto: (cb: (id: string) => void) => void
     }
     floatPhotoApi: {
       getPhotoId: () => string | null

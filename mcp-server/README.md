@@ -1,71 +1,57 @@
 # Note Pins MCP Server
 
-A local MCP server that lets Claude interact with the **Note Pins** desktop app via 9 safe, scoped tools.
+A local MCP server that lets Claude interact with the **Note Pins** desktop app via 11 tools.
 
 ## Architecture
 
 ```
-Claude (Desktop or Code CLI)
-  └── spawns: node dist/server.js  (stdio MCP server)
-                └── HTTP → 127.0.0.1:47890  (bridge inside running Electron app)
-                              └── calls db + FloatingWindowManager directly
+Claude.ai web (connector)          Claude Desktop (stdio)
+        │                                  │
+        │  https://lather-ninth-kleenex.ngrok-free.dev/mcp
+        │                    │
+        │               ngrok.exe  ← auto-spawned by Electron
+        └───────────────┬───┘
+                        │
+              mcp-server/dist/server.js  ← auto-spawned by Electron
+              (port 3001 in HTTP mode)
+                        │
+              127.0.0.1:47890  ← Electron HTTP bridge
+                        │
+              db.ts + FloatingWindowManager + FloatingPhotoManager
 ```
 
-**The Note Pins app must be running before using any MCP tools.** The HTTP bridge starts automatically when the app starts.
+**Note Pins must be running before using any MCP tools.** Everything auto-starts when the app launches — no manual setup.
 
 ---
 
-## Setup
+## Setup for Claude.ai
 
-### 1. Build (one-time, re-run after code changes)
-
-```powershell
-cd "C:\Users\shanm\OneDrive\Desktop\Sticky Note Desktop\mcp-server"
-npm install
-npm run build
+Add this connector URL in Claude.ai → Settings → Connectors:
+```
+https://lather-ninth-kleenex.ngrok-free.dev/mcp
 ```
 
-### 2a. Claude Desktop config
-
-Location: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "note-pins": {
-      "command": "C:\\Program Files\\nodejs\\node.exe",
-      "args": [
-        "C:\\Users\\shanm\\OneDrive\\Desktop\\Sticky Note Desktop\\mcp-server\\dist\\server.js"
-      ],
-      "env": {
-        "NOTE_PINS_BRIDGE_PORT": "47890"
-      }
-    }
-  }
-}
-```
-
-Fully quit and restart Claude Desktop after editing this file.
-
-### 2b. Claude Code CLI
-
-Run once to register:
+## Setup for Claude Code CLI
 
 ```powershell
 claude mcp add note-pins `
   -e NOTE_PINS_BRIDGE_PORT=47890 `
-  -- "C:\Program Files\nodejs\node.exe" `
+  -- node `
   "C:\Users\shanm\OneDrive\Desktop\Sticky Note Desktop\mcp-server\dist\server.js"
 ```
 
-### 3. Test with MCP Inspector
+## Build (after code changes)
 
 ```powershell
-cd "C:\Users\shanm\OneDrive\Desktop\Sticky Note Desktop\mcp-server"
-npx @modelcontextprotocol/inspector node dist/server.js
+cd mcp-server
+npm run build
 ```
 
-Opens a browser UI at `localhost:6274`. Call `list_pins` first to verify the bridge is reachable.
+Then rebuild the installer from the project root:
+```powershell
+Stop-Process -Name "Note Pins" -Force -ErrorAction SilentlyContinue
+$env:CSC_IDENTITY_AUTO_DISCOVERY="false"; npm run make
+```
 
 ---
 
@@ -74,7 +60,7 @@ Opens a browser UI at `localhost:6274`. Call `list_pins` first to verify the bri
 ### `list_pins`
 Returns all sticky notes and photo pins with a 100-character preview.
 
-**Inputs:** none  
+**Inputs:** none
 **Output:** `{ notes: [...], photos: [...], total: N }`
 
 ---
@@ -83,15 +69,7 @@ Returns all sticky notes and photo pins with a 100-character preview.
 Returns full details for one note or photo pin.
 
 **Inputs:**
-- `id` — UUID of the note or photo pin
-
----
-
-### `move_pin_to_app`
-Moves a posted desktop pin back to draft in the main app. Closes its floating window.
-
-**Inputs:**
-- `id` — UUID of the posted note or photo pin
+- `id` — UUID
 
 ---
 
@@ -99,30 +77,55 @@ Moves a posted desktop pin back to draft in the main app. Closes its floating wi
 Creates a new sticky note and posts it to the desktop immediately.
 
 **Inputs:**
-- `text` — Plain text content (newlines create separate paragraphs)
-- `title` — *(optional)* Title
+- `text` — Plain text (newlines become paragraphs)
+- `title` — *(optional)*
 - `theme` — *(optional)* `yellow | blue | green | pink | purple | white | dark | orange`
 
 ---
 
 ### `post_picture`
-Adds an image and posts it as a Polaroid-style picture pin on the desktop.
+Adds an image and posts it as a Polaroid-style pin on the desktop.
 
 **Inputs:**
-- `source` — Absolute file path OR base64-encoded image data
-- `source_type` — `"path"` or `"base64"`
+- `source` — Absolute file path, `http/https` URL, or base64-encoded image data
+- `source_type` — `"path"` | `"url"` | `"base64"`
 - `title` — *(optional)*
-- `caption` — *(optional)* Text shown below the image
+- `caption` — *(optional)*
 
 **Supported formats:** jpg, jpeg, png, gif, bmp, webp
 
 ---
 
-### `edit_note`
-Edits the text content and/or title of an existing sticky note. Updates the floating window live if the note is posted.
+### `post_clipboard_image`
+Posts the image currently in the clipboard as a photo pin. Use when the user pastes an image into the chat.
 
 **Inputs:**
-- `id` — UUID of the note
+- `title` — *(optional)*
+- `caption` — *(optional)*
+
+---
+
+### `post_to_desktop`
+Takes an existing draft note or photo pin and puts it on the desktop.
+
+**Inputs:**
+- `id` — UUID of the draft
+
+---
+
+### `move_pin_to_app`
+Pulls a posted desktop pin back into the app as a draft.
+
+**Inputs:**
+- `id` — UUID of the posted pin
+
+---
+
+### `edit_note`
+Edits the text or title of an existing note. Updates the floating window live.
+
+**Inputs:**
+- `id` — UUID
 - `text` — *(optional)* New plain-text content
 - `title` — *(optional)* New title
 
@@ -131,25 +134,25 @@ At least one of `text` or `title` is required.
 ---
 
 ### `edit_picture`
-Replaces the image of an existing photo pin. Preserves metadata; deletes the old image file.
+Replaces the image on a photo pin. Deletes the old image file.
 
 **Inputs:**
-- `id` — UUID of the photo pin
-- `source` — Absolute file path OR base64-encoded image data
-- `source_type` — `"path"` or `"base64"`
+- `id` — UUID
+- `source` — Absolute file path, URL, or base64
+- `source_type` — `"path"` | `"url"` | `"base64"`
 
 ---
 
 ### `strikethrough_sentence`
-Toggles strikethrough on a sentence in a sticky note using the app's native `struckKeys` format (position-based keys, not text matching). Updates the floating window live.
+Toggles strikethrough on a sentence in a sticky note.
 
 **Inputs:**
-- `id` — UUID of the note
-- `sentence_text` — Exact text of the sentence (including punctuation, case-sensitive)
+- `id` — UUID
+- `sentence_text` — Exact text of the sentence (case-sensitive, include punctuation)
 
-If the sentence is not found, returns the list of all sentences in the note.
+Returns the list of all sentences in the note if the text isn't found.
 
-**Note:** A sentence boundary is defined as: a period followed by whitespace followed by an uppercase letter (e.g. "First sentence. Second sentence." splits into two). Abbreviations like "Dr. Smith" are not split because they are not followed by an uppercase letter at the start of a new sentence.
+**Sentence boundary:** period + whitespace + uppercase letter. `"Dr. Smith"` is not split.
 
 ---
 
@@ -157,25 +160,13 @@ If the sentence is not found, returns the list of all sentences in the note.
 Permanently deletes a note or photo pin (and its image file).
 
 **Inputs:**
-- `id` — UUID of the note or photo pin
-- `confirm` — Must be the exact string `"DELETE"` (case-sensitive)
-
-Returns a summary of exactly what was deleted.
+- `id` — UUID
+- `confirm` — Must be exactly `"DELETE"` (case-sensitive)
 
 ---
 
-## Safety Notes
+## Technical Notes
 
-- The HTTP bridge binds to `127.0.0.1` only — not accessible from the network
-- No arbitrary shell execution or file system access is exposed
-- All image operations use allowlisted extensions only
-- Deletion requires explicit `"DELETE"` confirmation
-- The bridge is started/stopped with the Electron app process
-- Port 47890 can be changed via the `NOTE_PINS_BRIDGE_PORT` environment variable
-
-## Features Not Exposed
-
-- **Rich text formatting** (bold, italic, headings, lists) — the `edit_note` tool converts plain text to paragraphs only. To preserve Slate formatting, the `slateContent` field in the bridge API accepts raw Slate JSON, but this is not surfaced as an MCP tool to avoid exposing complex format requirements.
-- **Note styling** (font, border radius, shadow, opacity) — beyond `theme`, these require deep knowledge of the data model and are not commonly needed via Claude.
-- **Hiding notes** — the `hidden` status is an internal state not exposed via MCP.
-- **Lock/unlock and always-on-top** — managed via the app's right-click context menu.
+- **SDK v1.29 stateless transport**: `buildMcpServer()` factory creates a fresh `McpServer` + `StreamableHTTPServerTransport` per HTTP request. Do not share the transport across requests.
+- **RunAsNode fuse**: The packaged `Note Pins.exe` has `FuseV1Options.RunAsNode` enabled via `@electron/fuses` in `afterPack.js`. This is required for `ELECTRON_RUN_AS_NODE=1` to work in Electron 32+.
+- **Bridge port**: Default `47890`. Override with `NOTE_PINS_BRIDGE_PORT` env var.

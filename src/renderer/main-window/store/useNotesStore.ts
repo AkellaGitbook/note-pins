@@ -2,13 +2,10 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type { Note } from '../../../shared/types'
 
-type Filter = 'all' | 'draft' | 'hidden'
-
 type State = {
   notes: Note[]
   selectedId: string | null
   searchQuery: string
-  filter: Filter
 }
 
 type Actions = {
@@ -21,20 +18,14 @@ type Actions = {
   postNote: (id: string) => Promise<void>
   moveNoteBack: (id: string) => Promise<void>
   setSearch: (q: string) => void
-  setFilter: (f: Filter) => void
   // IPC push handlers
   applyNoteUpdated: (note: Note) => void
   applyNoteDeleted: (id: string) => void
   applyNoteAdded: (note: Note) => void
 }
 
-function getFiltered(notes: Note[], query: string, filter: Filter): Note[] {
-  let list = notes
-  if (filter !== 'all') {
-    list = list.filter((n) => n.status === filter)
-  } else {
-    list = list.filter((n) => n.status !== 'posted')
-  }
+function getFiltered(notes: Note[], query: string): Note[] {
+  let list = notes.filter((n) => n.status !== 'posted')
   if (query.trim()) {
     const q = query.toLowerCase()
     list = list.filter(
@@ -51,7 +42,6 @@ export const useNotesStore = create<State & Actions>()(
     notes: [],
     selectedId: null,
     searchQuery: '',
-    filter: 'all',
 
     loadNotes: async () => {
       const notes = await window.noteApi.getAllNotes()
@@ -132,13 +122,6 @@ export const useNotesStore = create<State & Actions>()(
       })
     },
 
-    setFilter: (f) => {
-      set((s) => {
-        s.filter = f
-        s.selectedId = null
-      })
-    },
-
     applyNoteUpdated: (note) => {
       set((s) => {
         const idx = s.notes.findIndex((n) => n.id === note.id)
@@ -168,7 +151,7 @@ export const useNotesStore = create<State & Actions>()(
 )
 
 export const useFilteredNotes = () => {
-  return useNotesStore((s) => getFiltered(s.notes, s.searchQuery, s.filter))
+  return useNotesStore((s) => getFiltered(s.notes, s.searchQuery))
 }
 
 export const useSelectedNote = () => {

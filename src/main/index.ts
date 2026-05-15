@@ -10,6 +10,7 @@ import { registerIpcHandlers } from './ipc-handlers'
 import { startBridge, stopBridge } from './http-bridge'
 
 app.setName('Note Pins')
+app.setAppUserModelId('com.notepins.app')
 app.disableHardwareAcceleration()
 
 // Must be called before app.whenReady() — tells Chromium to route app-image://
@@ -150,6 +151,10 @@ app.whenReady().then(async () => {
             mainWindow.focus()
           }
         },
+      },
+      {
+        label: 'Claude MCP: active (restart Claude Desktop if new)',
+        enabled: false,
       },
       { type: 'separator' },
       {

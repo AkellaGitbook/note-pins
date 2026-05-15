@@ -1,4 +1,4 @@
-import type { Note, PhotoPin, Pin } from './types.js'
+import type { Note, PhotoPin, Pin } from './types'
 
 const PORT = process.env['NOTE_PINS_BRIDGE_PORT'] ?? '47890'
 const BASE_URL = `http://127.0.0.1:${PORT}`

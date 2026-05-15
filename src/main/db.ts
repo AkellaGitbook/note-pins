@@ -57,9 +57,22 @@ function applyMigrations(): boolean {
       migrated = true
     }
   }
+  // status migration: 'draft'|'hidden' → 'unposted'
+  for (const note of db.notes as any[]) {
+    if (note.status === 'draft' || note.status === 'hidden') {
+      note.status = 'unposted'
+      migrated = true
+    }
+  }
   if (!db.photoPins) {
     db.photoPins = []
     migrated = true
+  }
+  for (const pin of db.photoPins as any[]) {
+    if (pin.status === 'draft') {
+      pin.status = 'unposted'
+      migrated = true
+    }
   }
   return migrated
 }
@@ -112,7 +125,7 @@ function makeNote(partial: Partial<Note> = {}): Note {
     content: DEFAULT_CONTENT,
     createdAt: now,
     updatedAt: now,
-    status: 'draft',
+    status: 'unposted',
     x: 120 + Math.floor(Math.random() * 160),
     y: 120 + Math.floor(Math.random() * 160),
     width: 280,
@@ -179,7 +192,7 @@ export function duplicateNote(id: string): Note | null {
     ...src,
     id: uuidv4(),
     title: `${src.title} (copy)`,
-    status: 'draft',
+    status: 'unposted',
     createdAt: now,
     updatedAt: now,
     x: src.x + 24,
@@ -217,7 +230,7 @@ function makePhotoPin(sourceImagePath: string, partial: Partial<PhotoPin> = {}):
     caption: '',
     createdAt: now,
     updatedAt: now,
-    status: 'draft',
+    status: 'unposted',
     x: 200 + Math.floor(Math.random() * 160),
     y: 200 + Math.floor(Math.random() * 160),
     width: 260,

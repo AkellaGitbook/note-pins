@@ -70,14 +70,7 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC.NOTE_MOVE_BACK, (_e, id: string) => {
     fwm.closeNote(id)
-    const note = db.updateNote(id, { status: 'draft' })
-    if (note) mainWindow.webContents.send(IPC.MAIN_NOTE_UPDATED, note)
-    return note
-  })
-
-  ipcMain.handle(IPC.NOTE_HIDE, (_e, id: string) => {
-    fwm.closeNote(id)
-    const note = db.updateNote(id, { status: 'hidden' })
+    const note = db.updateNote(id, { status: 'unposted' })
     if (note) mainWindow.webContents.send(IPC.MAIN_NOTE_UPDATED, note)
     return note
   })
@@ -170,7 +163,7 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC.PHOTO_PIN_MOVE_BACK, (_e, id: string) => {
     fpm.closePin(id)
-    const pin = db.updatePhotoPin(id, { status: 'draft' })
+    const pin = db.updatePhotoPin(id, { status: 'unposted' })
     if (pin) mainWindow.webContents.send(IPC.MAIN_PHOTO_PIN_UPDATED, pin)
     return pin
   })

@@ -76,19 +76,7 @@ npm install
 npm run build
 ```
 
-For Claude Desktop, add this to `%APPDATA%\Claude\claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "note-pins": {
-      "command": "C:\\Program Files\\nodejs\\node.exe",
-      "args": ["C:\\path\\to\\mcp-server\\dist\\server.js"],
-      "env": { "NOTE_PINS_BRIDGE_PORT": "47890" }
-    }
-  }
-}
-```
+Claude Desktop is configured automatically — Note Pins writes the MCP entry to Claude Desktop's config on every startup. Just launch Note Pins, then restart Claude Desktop once. No manual config editing needed.
 
 ---
 

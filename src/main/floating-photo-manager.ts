@@ -91,6 +91,7 @@ export class FloatingPhotoManager {
         contextIsolation: true,
         sandbox: false,
         backgroundThrottling: true,
+        spellcheck: false,
         additionalArguments: ['--js-flags=--max-old-space-size=64'],
       },
     })
@@ -150,15 +151,24 @@ export class FloatingPhotoManager {
     }
   }
 
-  private showContextMenu(win: BrowserWindow, pinId: string, pin: PhotoPin): void {
+  private showContextMenu(win: BrowserWindow, pinId: string, _pin: PhotoPin): void {
     const fpm = this
 
     const menu = Menu.buildFromTemplate([
       {
-        label: 'Move Back to App',
+        label: 'Edit',
+        click: () => {
+          if (!this.mainWindow.isDestroyed()) {
+            this.mainWindow.focus()
+            this.mainWindow.webContents.send(IPC.MAIN_SELECT_PHOTO, pinId)
+          }
+        },
+      },
+      {
+        label: 'Un-post',
         click: () => {
           fpm.closePin(pinId)
-          const updated = updatePhotoPin(pinId, { status: 'draft' })
+          const updated = updatePhotoPin(pinId, { status: 'unposted' })
           if (updated && !this.mainWindow.isDestroyed()) {
             this.mainWindow.webContents.send(IPC.MAIN_PHOTO_PIN_UPDATED, updated)
           }
@@ -181,46 +191,6 @@ export class FloatingPhotoManager {
             deletePhotoPin(pinId)
             if (!this.mainWindow.isDestroyed()) {
               this.mainWindow.webContents.send(IPC.MAIN_PHOTO_PIN_DELETED, pinId)
-            }
-          }
-        },
-      },
-      { type: 'separator' },
-      {
-        label: pin.isAlwaysOnTop ? 'Unpin from Top' : 'Pin Above Apps',
-        click: () => {
-          const value = !pin.isAlwaysOnTop
-          const floatWin = fpm.getWindow(pinId)
-          if (floatWin && !floatWin.isDestroyed()) {
-            if (process.platform === 'darwin') {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              floatWin.setAlwaysOnTop(value, (value ? 'floating' : 'desktop-icon') as any)
-            } else {
-              floatWin.setAlwaysOnTop(value)
-            }
-          }
-          const updated = updatePhotoPin(pinId, { isAlwaysOnTop: value })
-          if (updated) {
-            fpm.pushUpdate(updated)
-            if (!this.mainWindow.isDestroyed()) {
-              this.mainWindow.webContents.send(IPC.MAIN_PHOTO_PIN_UPDATED, updated)
-            }
-          }
-        },
-      },
-      {
-        label: pin.isLocked ? 'Unlock Position' : 'Lock Position',
-        click: () => {
-          const value = !pin.isLocked
-          const floatWin = fpm.getWindow(pinId)
-          if (floatWin && !floatWin.isDestroyed()) {
-            floatWin.setResizable(!value)
-          }
-          const updated = updatePhotoPin(pinId, { isLocked: value })
-          if (updated) {
-            fpm.pushUpdate(updated)
-            if (!this.mainWindow.isDestroyed()) {
-              this.mainWindow.webContents.send(IPC.MAIN_PHOTO_PIN_UPDATED, updated)
             }
           }
         },

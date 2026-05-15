@@ -14,6 +14,7 @@ export const IPC = {
   FLOAT_MOVE: 'float:move',
   FLOAT_RESIZE: 'float:resize',
   FLOAT_CONTEXT_MENU: 'float:contextMenu',
+  FLOAT_ENTER_EDIT: 'float:enterEdit',
   NOTE_UPDATE_STYLE: 'note:updateStyle',
   FLOAT_SET_ALWAYS_ON_TOP: 'float:setAlwaysOnTop',
 
@@ -23,6 +24,7 @@ export const IPC = {
   MAIN_NOTE_DELETED: 'main:noteDeleted',
   MAIN_NOTE_ADDED: 'main:noteAdded',
   MAIN_SELECT_NOTE: 'main:selectNote',
+  MAIN_SELECT_PHOTO: 'main:selectPhoto',
 
   // Photo Pins
   PHOTO_PINS_GET_ALL: 'photoPins:getAll',

@@ -2,12 +2,9 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type { PhotoPin } from '../../../shared/types'
 
-type PhotoFilter = 'all' | 'posted' | 'draft'
-
 type State = {
   pins: PhotoPin[]
   selectedId: string | null
-  photoFilter: PhotoFilter
 }
 
 type Actions = {
@@ -18,7 +15,6 @@ type Actions = {
   deletePin: (id: string) => Promise<void>
   postPin: (id: string) => Promise<void>
   moveBack: (id: string) => Promise<void>
-  setPhotoFilter: (f: PhotoFilter) => void
   applyPinUpdated: (pin: PhotoPin) => void
   applyPinDeleted: (id: string) => void
   applyPinAdded: (pin: PhotoPin) => void
@@ -28,7 +24,6 @@ export const usePhotoPinsStore = create<State & Actions>()(
   immer((set) => ({
     pins: [],
     selectedId: null,
-    photoFilter: 'all',
 
     loadPins: async () => {
       const pins = await window.photoApi.getAllPhotoPins()
@@ -88,8 +83,6 @@ export const usePhotoPinsStore = create<State & Actions>()(
       })
     },
 
-    setPhotoFilter: (f) => set((s) => { s.photoFilter = f; s.selectedId = null }),
-
     applyPinUpdated: (pin) => {
       set((s) => {
         const idx = s.pins.findIndex((p) => p.id === pin.id)
@@ -117,7 +110,4 @@ export const useSelectedPhotoPin = () =>
   usePhotoPinsStore((s) => s.pins.find((p) => p.id === s.selectedId) ?? null)
 
 export const useFilteredPhotoPins = () =>
-  usePhotoPinsStore((s) => {
-    if (s.photoFilter === 'all') return s.pins
-    return s.pins.filter((p) => p.status === s.photoFilter)
-  })
+  usePhotoPinsStore((s) => s.pins)

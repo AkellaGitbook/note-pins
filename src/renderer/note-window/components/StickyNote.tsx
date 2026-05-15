@@ -1,12 +1,28 @@
-import type { CSSProperties } from 'react'
+import { useRef, useMemo, type CSSProperties } from 'react'
+import { createEditor, Descendant } from 'slate'
+import { Slate, Editable, withReact } from 'slate-react'
+import { withHistory } from 'slate-history'
 import type { Note } from '../../../shared/types'
 import { getTheme } from '../../../shared/themes'
 import { NoteContentRenderer } from './NoteContent'
+import { useNoteWindowStore } from '../store/useNoteWindowStore'
+import '../../slate-types'
 
 type SlateNode = {
   type?: string
   text?: string
   children?: SlateNode[]
+}
+
+const EMPTY_CONTENT: Descendant[] = [{ type: 'paragraph', children: [{ text: '' }] }]
+
+function parseContent(raw: string): Descendant[] {
+  try {
+    const v = JSON.parse(raw)
+    return Array.isArray(v) && v.length > 0 ? v : EMPTY_CONTENT
+  } catch {
+    return EMPTY_CONTENT
+  }
 }
 
 function splitSentences(text: string): string[] {
@@ -62,6 +78,14 @@ type Props = { note: Note }
 
 export function StickyNote({ note }: Props) {
   const theme = getTheme(note.theme)
+  const { isEditing } = useNoteWindowStore()
+
+  const titleDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const contentDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Slate editor instance — stable across re-renders, remounted via key when editing starts
+  const editor = useMemo(() => withHistory(withReact(createEditor())), [note.id, isEditing])
+  const initialValue = useMemo(() => parseContent(note.content), [note.id, isEditing])
 
   const handleSentenceClick = async (key: string) => {
     const current = note.struckKeys ?? []
@@ -86,7 +110,87 @@ export function StickyNote({ note }: Props) {
     flexDirection: 'column',
   }
 
-  // The title bar is the drag handle — draggable unless locked
+  if (isEditing) {
+    // In edit mode: everything is no-drag, note looks identical but content is editable
+    const noDrag: AppRegionStyle = { WebkitAppRegion: 'no-drag' }
+
+    return (
+      <div className="note-paper note-fold" style={shellStyle}>
+        {/* Title — editable input styled exactly like the h3 */}
+        <div style={{ flexShrink: 0, padding: '8px 12px 4px', ...noDrag }}>
+          <input
+            autoFocus
+            defaultValue={note.title}
+            onChange={(e) => {
+              const val = e.target.value
+              if (titleDebounce.current) clearTimeout(titleDebounce.current)
+              titleDebounce.current = setTimeout(() => {
+                window.floatApi.updateStyle(note.id, { title: val })
+              }, 400)
+            }}
+            style={{
+              width: '100%',
+              margin: 0,
+              padding: 0,
+              fontFamily: note.fontFamily,
+              fontSize: note.titleFontSize,
+              fontWeight: 700,
+              color: theme.textColor,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+            }}
+          />
+        </div>
+
+        {/* Content — Slate editable, no toolbar, styled to match read-only view */}
+        <div className="note-content" style={{ flex: 1, padding: '0 12px', overflowY: 'auto', ...noDrag }}>
+          <Slate
+            editor={editor}
+            initialValue={initialValue}
+            onChange={(value) => {
+              if (contentDebounce.current) clearTimeout(contentDebounce.current)
+              contentDebounce.current = setTimeout(() => {
+                window.floatApi.updateStyle(note.id, { content: JSON.stringify(value) })
+              }, 400)
+            }}
+          >
+            <Editable
+              style={{
+                fontFamily: note.fontFamily,
+                fontSize: note.contentFontSize,
+                fontWeight: note.fontWeight,
+                lineHeight: note.lineHeight,
+                textAlign: note.textAlign,
+                color: theme.textColor,
+                minHeight: 60,
+                outline: 'none',
+              }}
+              placeholder="Write your note here…"
+              spellCheck
+            />
+          </Slate>
+        </div>
+
+        {/* Tags */}
+        {note.tags.length > 0 && (
+          <div className="flex gap-1 flex-wrap pb-1" style={{ padding: '0 12px 8px', ...noDrag }}>
+            {note.tags.slice(0, 5).map((tag) => (
+              <span
+                key={tag}
+                className="text-xs px-1.5 py-0.5 rounded-full"
+                style={{ backgroundColor: `${theme.textColor}18`, color: theme.textColor }}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Read-only view
   const titleBarStyle: AppRegionStyle = {
     flexShrink: 0,
     padding: '8px 12px 4px',
@@ -94,7 +198,6 @@ export function StickyNote({ note }: Props) {
     WebkitAppRegion: note.isLocked ? 'no-drag' : 'drag',
   }
 
-  // Content area must be no-drag so text can be read/scrolled
   const contentStyle: AppRegionStyle = {
     flex: 1,
     padding: '0 12px',
@@ -109,7 +212,6 @@ export function StickyNote({ note }: Props) {
 
   return (
     <div className="note-paper note-fold" style={shellStyle}>
-      {/* Title bar — drag handle */}
       <div style={titleBarStyle}>
         <h3
           style={{
@@ -122,7 +224,6 @@ export function StickyNote({ note }: Props) {
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
             userSelect: 'none',
-            // Prevent title text from interfering with drag
             pointerEvents: 'none',
           }}
         >
@@ -130,7 +231,6 @@ export function StickyNote({ note }: Props) {
         </h3>
       </div>
 
-      {/* Content — not draggable */}
       <div className="note-content" style={contentStyle}>
         <NoteContentRenderer
           content={note.content}
@@ -141,17 +241,13 @@ export function StickyNote({ note }: Props) {
         />
       </div>
 
-      {/* Tags — not draggable */}
       {note.tags.length > 0 && (
         <div className="flex gap-1 flex-wrap pb-1" style={tagsStyle}>
           {note.tags.slice(0, 5).map((tag) => (
             <span
               key={tag}
               className="text-xs px-1.5 py-0.5 rounded-full"
-              style={{
-                backgroundColor: `${theme.textColor}18`,
-                color: theme.textColor,
-              }}
+              style={{ backgroundColor: `${theme.textColor}18`, color: theme.textColor }}
             >
               {tag}
             </span>
@@ -159,7 +255,6 @@ export function StickyNote({ note }: Props) {
         </div>
       )}
 
-      {/* Lock indicator */}
       {note.isLocked && (
         <div
           style={{

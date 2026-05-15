@@ -1,6 +1,6 @@
 import { createServer, IncomingMessage, ServerResponse, Server } from 'http'
 import { spawn, ChildProcess } from 'child_process'
-import { copyFileSync, unlinkSync, existsSync, writeFileSync } from 'fs'
+import { copyFileSync, unlinkSync, existsSync, writeFileSync, readFileSync, mkdirSync, readdirSync } from 'fs'
 import { join, extname } from 'path'
 import { tmpdir } from 'os'
 import { v4 as uuidv4 } from 'uuid'
@@ -249,7 +249,7 @@ async function handleMovePinBack(res: ServerResponse, id: string): Promise<void>
   if (note) {
     if (note.status !== 'posted') { err(res, 409, 'Pin is not currently posted to the desktop'); return }
     _fwm!.closeNote(id)
-    const updated = updateNote(id, { status: 'draft' })!
+    const updated = updateNote(id, { status: 'unposted' })!
     pushMain(IPC.MAIN_NOTE_UPDATED, updated)
     ok(res, taggedPin(updated, 'note')); return
   }
@@ -257,7 +257,7 @@ async function handleMovePinBack(res: ServerResponse, id: string): Promise<void>
   if (pin) {
     if (pin.status !== 'posted') { err(res, 409, 'Pin is not currently posted to the desktop'); return }
     _fpm!.closePin(id)
-    const updated = updatePhotoPin(id, { status: 'draft' })!
+    const updated = updatePhotoPin(id, { status: 'unposted' })!
     pushMain(IPC.MAIN_PHOTO_PIN_UPDATED, updated)
     ok(res, taggedPin(updated, 'photo')); return
   }
@@ -331,6 +331,71 @@ async function dispatch(req: IncomingMessage, res: ServerResponse): Promise<void
   }
 }
 
+// ── Claude Desktop auto-config ────────────────────────────────────────────────
+
+function claudeConfigDirs(): string[] {
+  const dirs: string[] = []
+
+  // Standard path (direct-download / EXE installer version)
+  const appdata = process.env['APPDATA'] ?? ''
+  if (appdata) dirs.push(join(appdata, 'Claude'))
+
+  // Windows Store version: AppData is sandboxed under LocalAppData\Packages\Claude_*
+  const localappdata = process.env['LOCALAPPDATA'] ?? ''
+  if (localappdata) {
+    const packagesDir = join(localappdata, 'Packages')
+    try {
+      for (const entry of readdirSync(packagesDir)) {
+        if (entry.startsWith('Claude_')) {
+          dirs.push(join(packagesDir, entry, 'LocalCache', 'Roaming', 'Claude'))
+        }
+      }
+    } catch { /* Packages dir absent */ }
+  }
+
+  return dirs
+}
+
+function configureClaudeDesktop(mcpServerPath: string): void {
+  const entry = {
+    command: process.execPath,
+    args: [mcpServerPath],
+    env: { ELECTRON_RUN_AS_NODE: '1' },
+  }
+
+  for (const configDir of claudeConfigDirs()) {
+    const configPath = join(configDir, 'claude_desktop_config.json')
+
+    let config: Record<string, any> = {}
+    if (existsSync(configPath)) {
+      try {
+        config = JSON.parse(readFileSync(configPath, 'utf-8'))
+      } catch {
+        config = {}
+      }
+    }
+
+    if (!config.mcpServers) config.mcpServers = {}
+
+    const existing = config.mcpServers['note-pins']
+    if (existing?.command === entry.command &&
+        JSON.stringify(existing?.args) === JSON.stringify(entry.args) &&
+        JSON.stringify(existing?.env) === JSON.stringify(entry.env)) {
+      continue  // already up to date for this path
+    }
+
+    config.mcpServers['note-pins'] = entry
+
+    try {
+      if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true })
+      writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
+      console.log('[mcp] Claude Desktop config updated:', configPath)
+    } catch (e) {
+      console.warn('[mcp] could not write Claude Desktop config:', String(e))
+    }
+  }
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export function startBridge(
@@ -361,13 +426,14 @@ export function startBridge(
     ? join(process.resourcesPath, 'mcp-server', 'dist', 'server.js')
     : join(app.getAppPath(), 'mcp-server', 'dist', 'server.js')
   if (existsSync(mcpServerPath)) {
-    mcpProcess = spawn('node', [mcpServerPath], {
+    mcpProcess = spawn(process.execPath, [mcpServerPath], {
       stdio: 'ignore',
-      env: { ...process.env, NOTE_PINS_HTTP_MODE: '1', NOTE_PINS_BRIDGE_PORT: String(port), NOTE_PINS_MCP_PORT: '3001' },
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', NOTE_PINS_HTTP_MODE: '1', NOTE_PINS_BRIDGE_PORT: String(port), NOTE_PINS_MCP_PORT: '3001' },
     })
     mcpProcess.on('error', (e) => console.warn('[mcp-http] failed to start:', e.message))
     mcpProcess.on('exit', (code) => { if (code !== 0 && code !== null) console.warn(`[mcp-http] exited with code ${code}`) })
     console.log('[mcp-http] spawned, connector URL → http://127.0.0.1:3001/mcp')
+    configureClaudeDesktop(mcpServerPath)
   } else {
     console.warn('[mcp-http] server not found at', mcpServerPath, '— build mcp-server/ first')
   }

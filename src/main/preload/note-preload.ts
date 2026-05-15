@@ -25,4 +25,8 @@ contextBridge.exposeInMainWorld('floatApi', {
   onNoteUpdated: (cb: (note: Note) => void): void => {
     ipcRenderer.on(IPC.MAIN_NOTE_UPDATED, (_e, note) => cb(note))
   },
+
+  onEnterEdit: (cb: () => void): void => {
+    ipcRenderer.on(IPC.FLOAT_ENTER_EDIT, () => cb())
+  },
 })
